@@ -1,150 +1,145 @@
 #include <raylib.h>
-#include <stdlib.h>
+#include <stdbool.h>
 
-#define BORDURE_HAUT 0
-#define BORDURE_BAS 1040
-#define BORDURE_GAUCHE 0
-#define BORDURE_DROIE 1880
+#define SCREEN_WIDTH 1280
+#define SCREEN_HEIGHT 720
+#define PADDLE_WIDTH 20.0f
+#define PADDLE_HEIGHT 150.0f 
+#define PADDLE_MARGIN 30.0f
+#define BALL_RADIUS 15.0f
 
-typedef enum {
+typedef struct {
+  float x, y;
+  float speed;
+  int score;
+} Paddle;
 
-    HAUT = KEY_W,
-    BAS = KEY_S,
+typedef struct {
+  float x, y;
+  float speedX, speedY;
+  float radius;
+} Ball;
 
-} ToucheJoueur;
+// Function to put back the ball in the center of the screen
+void ResetGame(Ball *ball, Paddle *player, Paddle *ai) {
+  ball->x = SCREEN_WIDTH / 2.0f;
+  ball->y = SCREEN_HEIGHT / 2.0f;
+
+  // Random direction for the service
+  ball->speedX = (GetRandomValue(0, 1) == 0) ? 550.0f : -550.0f;
+  ball->speedY = (GetRandomValue(0, 1) == 0) ? 550.0f : -550.0f;
+
+  player->y = (SCREEN_HEIGHT / 2.0f) - (PADDLE_HEIGHT / 2.0f);
+  ai->y = (SCREEN_HEIGHT / 2.0f) - (PADDLE_HEIGHT / 2.0f);
+}
 
 int main(void) {
+  InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "PONG");
+  SetTargetFPS(144);
 
-//  Initialistation de la fenêtre
-    InitWindow(1880, 1040, "PONG");
-    SetTargetFPS(144);
+  Paddle player = {PADDLE_MARGIN, 0, 600.0f, 0};
+  Paddle ai = {SCREEN_WIDTH - PADDLE_MARGIN - PADDLE_WIDTH, 0, 550.0f, 0};
+  Ball ball = {0, 0, 0, 0, BALL_RADIUS};
 
-    float yJoueur = (BORDURE_BAS / 2) - 120;    // Axe de mouvement de la raquette du joueur
-    float vRecJoueur = 500;                     // Vitesse de la raquette du joueur
+  ResetGame(&ball, &player, &ai);
+  bool gameOver = false;
 
-    float yIA = (BORDURE_BAS / 2) - 120;        // Axe de mouvement de la raquette de l'ordinateur
-    float vRecIA = 700;                         // Vitesse de la raquette de l'ordinateur
+  while (!WindowShouldClose()) {
+    float dt = GetFrameTime();
 
-    float xBalle = 940, yBalle = 520;   // Coordonée de base de la balle 
-    float vXBalle = 550, vYBalle = 600; // Vitesse de la balle en pixels/secondes
-    float rayonBalle = 20;              // Rayon de la balle
+    if (!gameOver) {
+      // --- Logic Update ---
+      ball.x += ball.speedX * dt;
+      ball.y += ball.speedY * dt;
 
-    int scoresJoueur = 0;
-    int scoresIA = 0;
+      // Wall collisions (Top/Bottom)
+      if (ball.y - ball.radius <= 0 || ball.y + ball.radius >= SCREEN_HEIGHT) {
+        ball.speedY *= -1.0f;
+      }
 
-    int gamerOver = 0;
+      // Paddle collisions
+      Rectangle playerRec = {player.x, player.y, PADDLE_WIDTH, PADDLE_HEIGHT};
+      Rectangle aiRec = {ai.x, ai.y, PADDLE_WIDTH, PADDLE_HEIGHT};
 
+      if (CheckCollisionCircleRec((Vector2){ball.x, ball.y}, ball.radius,
+                                  playerRec)) {
+        ball.speedX = (ball.speedX < 0) ? -ball.speedX * 1.05f : ball.speedX;
+        ball.x = player.x + PADDLE_WIDTH + ball.radius;
+      }
+      if (CheckCollisionCircleRec((Vector2){ball.x, ball.y}, ball.radius,
+                                  aiRec)) {
+        ball.speedX = (ball.speedX > 0) ? -ball.speedX * 1.05f : ball.speedX;
+        ball.x = ai.x - ball.radius;
+      }
 
-//  Boucle de jeu
-    while(!WindowShouldClose()) {
-        float dt = GetFrameTime();
+      // Scoring logic
+      if (ball.x < 0) {
+        ai.score++;
+        gameOver = true;
+      } else if (ball.x > SCREEN_WIDTH) {
+        player.score++;
+        gameOver = true;
+      }
 
-//      Mise à jour de la position de la balle
-        xBalle += vXBalle * dt;
-        yBalle += vYBalle * dt;
+      // Inputs
+      if (IsKeyDown(KEY_W))
+        player.y -= player.speed * dt;
+      if (IsKeyDown(KEY_S))
+        player.y += player.speed * dt;
 
-        Rectangle raquetteIA = {
+      // AI tracking
+      if (ball.y < ai.y + PADDLE_HEIGHT / 2.0f)
+        ai.y -= ai.speed * dt;
+      if (ball.y > ai.y + PADDLE_HEIGHT / 2.0f)
+        ai.y += ai.speed * dt;
 
-            (float)(BORDURE_DROIE - 30 - 20),
-            yIA,
-            20.0f,
-            240.0f
-        };
-    
-        Rectangle raquetteJoueur = {
+      // Clamp paddles
+      if (player.y < 0)
+        player.y = 0;
+      if (player.y + PADDLE_HEIGHT > SCREEN_HEIGHT)
+        player.y = SCREEN_HEIGHT - PADDLE_HEIGHT;
+      if (ai.y < 0)
+        ai.y = 0;
+      if (ai.y + PADDLE_HEIGHT > SCREEN_HEIGHT)
+        ai.y = SCREEN_HEIGHT - PADDLE_HEIGHT;
 
-            (float)(BORDURE_GAUCHE + 30),
-            yJoueur,
-            20.0f,  // Largeur du rectangle
-            240.0f  // Longueur du rectangle
-
-        };
-
-//      Si la balle arrive sur une bordure on inverse sa vitesse et augmente sur l'axe des ordonnées de 5%
-        if(yBalle - rayonBalle <= BORDURE_HAUT || yBalle + rayonBalle >= BORDURE_BAS) {
-            vYBalle *= -1.05f;    
-        }
-
-//      Si la balle touche la raquetteIA on inverse et augmente sa vitesse sur l'axe des abcisses de 5%
-        if(CheckCollisionCircleRec((Vector2){xBalle, yBalle}, rayonBalle, raquetteIA)) {
-            vXBalle *= -1.05f;
-            scoresIA++;   
-        }
-
-//      Si la balle touche la raquetteJoueur on inverse et augmente sa vitesse sur l'axe des abcisses de 5%
-        if(CheckCollisionCircleRec((Vector2){xBalle, yBalle}, rayonBalle, raquetteJoueur)) {
-            vXBalle *= -1.05f;
-            scoresJoueur++;
-        }
-        
-//      Si la balle arrive aux bordures droite ou gauche on passe gameOver à 1
-        if(xBalle + rayonBalle <= BORDURE_GAUCHE || xBalle - rayonBalle >= BORDURE_DROIE) {
-            gamerOver = 1;
-           }
-
-//      Si la raquette du joueur attend le bas de la fenêtre
-        if(yJoueur + 240 >= BORDURE_BAS) {
-            yJoueur = BORDURE_BAS - 240;
-        }
-
-//      Si la raquette du joueur attend le haut de la fenêtre
-        if(yJoueur <= BORDURE_HAUT) {
-            yJoueur = BORDURE_HAUT;
-        }
-
-//      Si la raquette de l'IA attend le bas de la fenêtre
-        if(yIA + 240 >= BORDURE_BAS) {
-            yIA = BORDURE_BAS - 240;
-        }
-
-//      Si la raquette de l'IA attend le haut de la fenêtre
-        if(yIA <= BORDURE_HAUT) {
-            yIA = BORDURE_HAUT;
-        }
-        
-/////////////////// Gestion des déplacement ///////////////////
-
-//      Si z est appuyée on monte              
-        if(IsKeyDown(HAUT)) yJoueur += vRecJoueur * dt * -1;
-//      Si s est appuyée on desecend
-        if(IsKeyDown(BAS)) yJoueur += vRecJoueur * dt;
-
-//      L'ia suit la balle
-        if(yBalle - 120 < yIA) {
-            yIA += vRecIA * dt * -1;
-        }
-
-        if(yBalle - 120 > yIA) {
-            yIA += vRecIA * dt;
-        }
-
-        BeginDrawing();
-
-            ClearBackground(BLACK);
-
-//          Si gameOver = 1 alors la partie est fini sinon on continue
-            if(gamerOver == 1) {
-                
-                const char *txtJoueur = TextFormat("Score joueur : %d", scoresJoueur);
-                const char *txtIA = TextFormat("Score IA : %d", scoresIA);
-                const char *txtGO = "GAME OVER";
-                
-                DrawText(txtGO, GetScreenWidth()/2 - MeasureText(txtGO, 40)/2, 480, 40, WHITE);
-                DrawText(txtJoueur, GetScreenWidth()/3 - MeasureText(txtJoueur, 30)/2, 560, 30, WHITE);
-                DrawText(txtIA, 2*GetScreenWidth()/3 - MeasureText(txtIA, 30)/2, 560, 30, WHITE);
-            
-            } else {
-                
-                DrawCircle((int)xBalle, (int)yBalle, rayonBalle, WHITE);
-                DrawRectangle(BORDURE_GAUCHE + 30, (int)yJoueur, 20, 240, WHITE);
-                DrawRectangle(BORDURE_DROIE - 30 - 20, (int)yIA, 20, 240, WHITE);
-
-            }
-
-        EndDrawing();
-
+    } else {
+      // --- Restart logic ---
+      if (IsKeyPressed(KEY_SPACE)) {
+        ResetGame(&ball, &player, &ai);
+        gameOver = false;
+      }
     }
 
-    CloseWindow();
-    return EXIT_SUCCESS;
+    // --- Drawing ---
+    BeginDrawing();
+    ClearBackground((Color){20, 20, 25, 255}); 
+    // Draw Middle Line
+    DrawLineEx((Vector2){SCREEN_WIDTH / 2.0, 0},
+               (Vector2){SCREEN_WIDTH / 2.0, SCREEN_HEIGHT}, 2, DARKGRAY);
+
+    // Draw HUD (Scores)
+    DrawText(TextFormat("%d", player.score), SCREEN_WIDTH / 4, 50, 60, WHITE);
+    DrawText(TextFormat("%d", ai.score), 3 * SCREEN_WIDTH / 4, 50, 60, WHITE);
+
+    if (gameOver) {
+      DrawRectangle(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT,
+                    (Color){0, 0, 0, 150}); // Overlay
+      const char *msg = "PRESS [SPACE] TO CONTINUE";
+      DrawText(msg, SCREEN_WIDTH / 2 - MeasureText(msg, 30) / 2,
+               SCREEN_HEIGHT / 2, 30, YELLOW);
+    } else {
+      DrawCircleV((Vector2){ball.x, ball.y}, ball.radius, WHITE);
+      DrawRectangleRounded(
+          (Rectangle){player.x, player.y, PADDLE_WIDTH, PADDLE_HEIGHT}, 0.5, 5,
+          WHITE);
+      DrawRectangleRounded((Rectangle){ai.x, ai.y, PADDLE_WIDTH, PADDLE_HEIGHT},
+                           0.5, 5, WHITE);
+    }
+
+    EndDrawing();
+  }
+
+  CloseWindow();
+  return 0;
 }

@@ -8,7 +8,8 @@ set(CMAKE_DEPENDS_LANGUAGES
 
 # The set of dependency files which are needed:
 set(CMAKE_DEPENDS_DEPENDENCY_FILES
-  "D:/COURS LYCEE/C/cours_c/Raylib/Pong/src/main.c" "CMakeFiles/Pong.dir/src/main.c.obj" "gcc" "CMakeFiles/Pong.dir/src/main.c.obj.d"
+  "/home/Snow/dev/c/Pong/src/main.c" "CMakeFiles/Pong.dir/src/main.c.o" "gcc" "CMakeFiles/Pong.dir/src/main.c.o.d"
+  "" "/home/Snow/dev/c/Pong/bin/Pong" "gcc" "CMakeFiles/Pong.dir/link.d"
   )
 
 # Targets to which this target links which contain Fortran sources.
