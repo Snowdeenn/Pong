@@ -1,3 +1,0 @@
-/home/Snow/dev/c/Pong/build/CMakeFiles/Pong.dir
-/home/Snow/dev/c/Pong/build/CMakeFiles/edit_cache.dir
-/home/Snow/dev/c/Pong/build/CMakeFiles/rebuild_cache.dir

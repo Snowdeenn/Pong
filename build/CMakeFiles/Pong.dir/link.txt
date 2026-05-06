@@ -1,1 +1,0 @@
-/usr/bin/cc -Wl,--dependency-file=CMakeFiles/Pong.dir/link.d CMakeFiles/Pong.dir/src/main.c.o -o /home/Snow/dev/c/Pong/bin/Pong  /usr/local/lib/libraylib.a -lm /usr/lib/x86_64-linux-gnu/libX11.so /usr/lib/x86_64-linux-gnu/libXext.so
